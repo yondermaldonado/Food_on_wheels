@@ -27,19 +27,20 @@ function pintarCategorias() {
     `<button class="chip" type="button" data-cat="${c}" aria-pressed="${c === categoria}">${c}</button>`).join("");
 }
 function pintarMenu() {
+  const inv = leerInventario();
   const lista = PRODUCTOS.filter((p) =>
     (categoria === "Todos" || p.categoria === categoria) &&
     (p.nombre + " " + p.descripcion).toLowerCase().includes(texto));
   $("#infoResultados").textContent = lista.length + " productos";
   $("#grilla").innerHTML = lista.length ? lista.map((p, i) => `
-    <article class="tarjeta" style="--i:${Math.min(i, 12)}">
-      <div class="tarjeta-img" aria-hidden="true">${p.emoji}${p.descuento ? `<span class="etiqueta-desc">-${p.descuento}%</span>` : ""}</div>
+    <article class="tarjeta${agotado(p, inv) ? " agotado" : ""}" style="--i:${Math.min(i, 12)}">
+      <div class="tarjeta-img" aria-hidden="true">${p.emoji}${agotado(p, inv) ? '<span class="etiqueta-desc etiqueta-agotado">Agotado</span>' : p.descuento ? `<span class="etiqueta-desc">-${p.descuento}%</span>` : ""}</div>
       <div class="tarjeta-cuerpo">
         <h3>${p.nombre}</h3><p>${p.descripcion}</p>
         <span class="meta"><b>★ ${p.rating}</b> · ${p.minutos} min</span>
         <div class="tarjeta-pie">
           <span class="precio">${p.descuento ? `<s>${dinero(p.precio)}</s>` : "Desde "}${dinero(precioFinal(p))}</span>
-          <button class="btn-anadir" type="button" data-id="${p.id}" aria-label="Añadir ${p.nombre}">+ Añadir</button>
+          <button class="btn-anadir" type="button" data-id="${p.id}" aria-label="Añadir ${p.nombre}"${agotado(p, inv) ? " disabled" : ""}>${agotado(p, inv) ? "Agotado" : "+ Añadir"}</button>
         </div>
       </div>
     </article>`).join("") : `<p class="vacio">No encontramos platos con esa búsqueda.</p>`;
@@ -74,10 +75,16 @@ function pintarCarrito() {
 }
 function cambiar(id, d) {
   const it = carrito.find((i) => i.id === id);
+  if (d > 0) { // no dejar pedir más de lo que hay en el inventario
+    const prueba = carrito.map((i) => ({ ...i })), e = prueba.find((i) => i.id === id);
+    e ? e.cant++ : prueba.push({ id, cant: 1 });
+    if (faltantes(prueba, leerInventario()).length) { aviso("No quedan más existencias de " + PRODUCTOS.find((x) => x.id === id).nombre); pintarMenu(); return false; }
+  }
   if (d > 0) { const b = $("#contador"); b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop"); }
   if (it) { it.cant += d; carrito = carrito.filter((i) => i.cant > 0); }
   else if (d > 0) carrito.push({ id, cant: 1 });
   pintarCarrito();
+  return true;
 }
 function abrirCarrito(abrir) {
   $("#carrito").classList.toggle("abierto", abrir);
@@ -107,8 +114,9 @@ function entregaCambio() {
 document.addEventListener("click", (e) => {
   const t = e.target.closest("button, a");
   if (!t) return;
-  if (t.dataset.cat) { categoria = t.dataset.cat; pintarCategorias(); pintarMenu(); }
-  if (t.dataset.id) { cambiar(+t.dataset.id, 1); aviso("Añadido al pedido"); }
+  if (t.dataset.cat) { categoria = t.dataset.cat; window.addEventListener("storage", (e) => { if (e.key === "fow_inventario") pintarMenu(); }); // el admin cambió el inventario
+pintarCategorias(); pintarMenu(); }
+  if (t.dataset.id && cambiar(+t.dataset.id, 1)) aviso("Añadido al pedido");
   if (t.dataset.mas) cambiar(+t.dataset.mas, 1);
   if (t.dataset.menos) cambiar(+t.dataset.menos, -1);
   if (t.dataset.filtro) {
@@ -189,6 +197,10 @@ document.addEventListener("click", (e) => {
 });
 $("#formPedido").onsubmit = (e) => {
   const f = e.target;
+  if (faltantes(carrito, leerInventario()).length) { // algo se agotó mientras armaba el pedido
+    e.preventDefault(); $("#dlgPedido").close(); pintarMenu(); abrirCarrito(true);
+    return aviso("Algún producto se agotó. Ajusta tu pedido.");
+  }
   // Pedido que luego leerán cocina (administrador) y contador. Estado inicial: "pendiente".
   const pedidos = leer("fow_pedidos", []);
   pedidos.push({

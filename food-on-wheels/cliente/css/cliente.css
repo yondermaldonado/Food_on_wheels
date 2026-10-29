@@ -164,3 +164,9 @@ dialog[open]::backdrop{animation:aparece .25s}
 @keyframes aparece{from{opacity:0}}
 @keyframes abre{from{opacity:0;transform:translateY(20px) scale(.96)}}
 @media (prefers-reduced-motion:reduce){*,::backdrop{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+
+/* Productos agotados */
+.tarjeta.agotado .tarjeta-img{filter:grayscale(1);opacity:.55}
+.tarjeta.agotado h3{color:var(--gris)}
+.etiqueta-agotado{background:#3b3b3b}
+.btn-anadir:disabled{background:#c9c4b6;cursor:not-allowed;transform:none;box-shadow:none}

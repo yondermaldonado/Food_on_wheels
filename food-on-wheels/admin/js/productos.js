@@ -43,3 +43,43 @@ const PROMOCIONES = [
   { titulo: "Combos en familia",  texto: "Hasta 15% menos en combos seleccionados.", filtro: "Combos" },
   { titulo: "FoW Prime",          texto: "25% de descuento en todas tus compras.",   filtro: "prime" }
 ];
+
+/* ===== INVENTARIO Y RECETAS (compartido con el panel admin; mantener idéntico en ambas carpetas) ===== */
+// [insumo, unidad, stock inicial, mínimo]
+const INSUMOS = [["Arroz","kg",40,15],["Frijol","kg",18,10],["Carne de res","kg",25,12],["Carne de cerdo","kg",20,10],["Pollo","kg",30,12],["Plátano maduro","und",60,30],["Plátano verde","und",50,25],["Huevos","und",120,60],["Aguacate","und",35,20],["Harina de maíz","kg",22,8],["Papa","kg",45,20],["Yuca","kg",9,10],["Queso","kg",12,6],["Limón","kg",8,5],["Coco","und",14,10],["Lulo","kg",6,6],["Panela","kg",10,4],["Aceite","L",16,8]];
+// Insumos que gasta UNA unidad de cada producto. "@id" = incluye otro producto (para los combos).
+const RECETAS = {
+  1: [["Arroz",.15],["Frijol",.12],["Carne de cerdo",.1],["Carne de res",.1],["Huevos",1],["Plátano maduro",1],["Aguacate",.5]],
+  2: [["Pollo",.2],["Papa",.3],["Aguacate",.5]],
+  3: [["Pollo",.25],["Yuca",.15],["Plátano verde",1],["Papa",.15]],
+  4: [["Carne de cerdo",.25],["Arroz",.1],["Harina de maíz",.08]],
+  5: [["Pollo",.22],["Arroz",.15],["Papa",.15]],
+  6: [["Carne de res",.3],["Papa",.2]],
+  7: [["Arroz",.15],["Plátano verde",1],["Coco",.25],["Aceite",.05]],
+  8: [["Coco",.5],["Arroz",.1],["Aceite",.03]],
+  9: [["Harina de maíz",.1],["Queso",.06],["Pollo",.08]],
+  10: [["Harina de maíz",.1],["Carne de res",.06],["Papa",.06],["Aceite",.03]],
+  11: [["Plátano verde",2],["Queso",.04],["Aceite",.03]],
+  12: [["Carne de cerdo",.15],["Limón",.03],["Harina de maíz",.05]],
+  13: [["Queso",.08],["Harina de maíz",.08],["Aceite",.04]],
+  14: [["Papa",.2],["Carne de res",.05],["Huevos",1]],
+  15: [["Limón",.1],["Coco",.25]], 16: [["Lulo",.15]], 17: [["Panela",.05],["Limón",.03]], 18: [["Queso",.03]],
+  22: [["Arroz",.06]], 23: [["Queso",.03]],
+  26: [["@1",4],["@15",4]], 27: [["@5",2],["@15",2]], 28: [["@5",1],["@16",1]],
+  29: [["@10",1],["@11",1],["@12",1],["@13",1]], 30: [["@9",6],["@15",3]]
+};
+function leerInventario() {
+  try { const v = JSON.parse(localStorage.getItem("fow_inventario")); if (v) return v; } catch {}
+  return INSUMOS.map(([n, u, s, m]) => ({ n, u, s, m }));
+}
+function necesidades(items) { // items: [{id, cant}] → { insumo: cantidad total }
+  const t = {};
+  const sumar = (id, veces) => (RECETAS[id] || []).forEach(([k, c]) => k[0] === "@" ? sumar(+k.slice(1), c * veces) : (t[k] = (t[k] || 0) + c * veces));
+  items.forEach((i) => sumar(i.id, i.cant));
+  return t;
+}
+function faltantes(items, inv) { // insumos que no alcanzan para esos items
+  const t = necesidades(items);
+  return Object.keys(t).filter((k) => { const x = inv.find((i) => i.n === k); return !x || x.s < t[k] - 1e-9; });
+}
+const agotado = (p, inv) => faltantes([{ id: p.id, cant: 1 }], inv).length > 0;
