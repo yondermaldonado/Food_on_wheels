@@ -11,6 +11,9 @@ let carrito = leer("fow_carrito", []);   // [{id, cant}]
 let cuentas = leer("fow_cuentas", []);
 let cliente = cuentas.find((c) => c.correo === leer("fow_sesion", null)) ?? null; // null = visitante
 let despuesDeAcceso = null;
+const primeActivo = () => !!cliente?.prime && (!cliente.vence || new Date(cliente.vence) > new Date());
+const bloqueado = () => !!leer("fow_cuentas", []).find((c) => c.correo === cliente?.correo)?.bloqueado;
+const AVISO_BLOQ = "Tu cuenta está bloqueada y no puede comprar. Contacta al restaurante.";
 
 const precioFinal = (p) => p.descuento ? p.precio * (1 - p.descuento / 100) : p.precio;
 
@@ -34,7 +37,7 @@ function pintarMenu() {
   $("#infoResultados").textContent = lista.length + " productos";
   $("#grilla").innerHTML = lista.length ? lista.map((p, i) => `
     <article class="tarjeta${agotado(p, inv) ? " agotado" : ""}" style="--i:${Math.min(i, 12)}">
-      <div class="tarjeta-img" aria-hidden="true">${p.emoji}${agotado(p, inv) ? '<span class="etiqueta-desc etiqueta-agotado">Agotado</span>' : p.descuento ? `<span class="etiqueta-desc">-${p.descuento}%</span>` : ""}</div>
+      <div class="tarjeta-img" aria-hidden="true">${p.imagen ? `<img src="${p.imagen}" alt="">` : p.emoji}${agotado(p, inv) ? '<span class="etiqueta-desc etiqueta-agotado">Agotado</span>' : p.descuento ? `<span class="etiqueta-desc">-${p.descuento}%</span>` : ""}</div>
       <div class="tarjeta-cuerpo">
         <h3>${p.nombre}</h3><p>${p.descripcion}</p>
         <span class="meta"><b>★ ${p.rating}</b> · ${p.minutos} min</span>
@@ -53,7 +56,7 @@ function pintarPromos() {
 /* Carrito */
 function totales() {
   const sub = carrito.reduce((s, i) => s + precioFinal(PRODUCTOS.find((p) => p.id === i.id)) * i.cant, 0);
-  const prime = cliente?.prime ? sub * 0.25 : 0;
+  const prime = primeActivo() ? sub * 0.25 : 0;
   return { sub, prime, total: sub - prime };
 }
 function pintarCarrito() {
@@ -61,7 +64,7 @@ function pintarCarrito() {
   $("#contador").textContent = n;
   $("#itemsCarrito").innerHTML = carrito.length ? carrito.map((i) => {
     const p = PRODUCTOS.find((x) => x.id === i.id);
-    return `<div class="item"><div class="item-emoji">${p.emoji}</div>
+    return `<div class="item"><div class="item-emoji">${p.imagen ? `<img src="${p.imagen}" alt="">` : p.emoji}</div>
       <div><b>${p.nombre}</b>${dinero(precioFinal(p))}</div>
       <div class="cantidad"><button data-menos="${p.id}" aria-label="Quitar uno">−</button>${i.cant}<button data-mas="${p.id}" aria-label="Agregar uno">+</button></div></div>`;
   }).join("") : `<p class="vacio">Tu carrito está vacío. Elige algo del menú.</p>`;
@@ -75,6 +78,7 @@ function pintarCarrito() {
 }
 function cambiar(id, d) {
   const it = carrito.find((i) => i.id === id);
+  if (d > 0 && cliente && bloqueado()) { aviso(AVISO_BLOQ); return false; }
   if (d > 0) { // no dejar pedir más de lo que hay en el inventario
     const prueba = carrito.map((i) => ({ ...i })), e = prueba.find((i) => i.id === id);
     e ? e.cant++ : prueba.push({ id, cant: 1 });
@@ -99,6 +103,7 @@ function pedirAcceso(msg, siguiente) {
   $("#dlgLogin").showModal();
 }
 function abrirPedido() {
+  if (bloqueado()) return aviso(AVISO_BLOQ);
   const f = $("#formPedido");
   f.nombre.value = cliente.nombre; f.telefono.value = cliente.telefono;
   f.direccion.value = cliente.direccion || "";
@@ -114,7 +119,18 @@ function entregaCambio() {
 document.addEventListener("click", (e) => {
   const t = e.target.closest("button, a");
   if (!t) return;
-  if (t.dataset.cat) { categoria = t.dataset.cat; window.addEventListener("storage", (e) => { if (e.key === "fow_inventario") pintarMenu(); }); // el admin cambió el inventario
+  if (t.dataset.cat) { categoria = t.dataset.cat; window.addEventListener("storage", (e) => { // el admin cambió algo
+  if (["fow_productos", "fow_recetas", "fow_promos", "fow_banner", "fow_inventario"].includes(e.key)) {
+    recargarCatalogo(); carrito = carrito.filter((i) => PRODUCTOS.some((p) => p.id === i.id));
+    if (!PRODUCTOS.some((p) => p.categoria === categoria)) categoria = "Todos";
+    aplicarBanner(); pintarCategorias(); pintarMenu(); pintarPromos(); pintarCarrito();
+  }
+  if (e.key === "fow_cuentas") {
+    cuentas = leer("fow_cuentas", []); const c = cuentas.find((x) => x.correo === cliente?.correo);
+    if (cliente && !c) { cliente = null; localStorage.removeItem("fow_sesion"); aviso("Tu cuenta ya no existe."); } else if (c) cliente = c;
+    pintarSesion();
+  }
+});
 pintarCategorias(); pintarMenu(); }
   if (t.dataset.id && cambiar(+t.dataset.id, 1)) aviso("Añadido al pedido");
   if (t.dataset.mas) cambiar(+t.dataset.mas, 1);
@@ -129,7 +145,13 @@ $("#btnCarrito").onclick = () => abrirCarrito(true);
 $("#cerrarCarrito").onclick = $("#velo").onclick = () => abrirCarrito(false);
 $("#buscar").oninput = (e) => { texto = e.target.value.toLowerCase().trim(); pintarMenu(); };
 $("#selEntrega").onchange = entregaCambio;
-const guardarCuentas = () => guardar("fow_cuentas", cuentas);
+function guardarCuentas() {
+  if (cliente) { // fusionar con lo que el admin pudo cambiar (p. ej. el bloqueo)
+    const frescas = leer("fow_cuentas", []), i = frescas.findIndex((c) => c.correo === cliente.correo);
+    if (i >= 0) { cliente.bloqueado = frescas[i].bloqueado; frescas[i] = cliente; cuentas = frescas; }
+  }
+  guardar("fow_cuentas", cuentas);
+}
 function pintarSesion() {
   $("#btnCuenta").textContent = cliente ? cliente.nombre.trim()[0].toUpperCase() : "👤";
   $("#btnCuenta2").firstChild.textContent = cliente ? "🙂" : "👤";
@@ -145,7 +167,7 @@ function abrirPerfil() {
   f.nombre.value = cliente.nombre; f.telefono.value = cliente.telefono; f.correo.value = cliente.correo;
   f.direccion.value = cliente.direccion || ""; f.clave.value = ""; $("#errPerfil").textContent = "";
   $("#avatar").textContent = cliente.nombre.trim()[0].toUpperCase();
-  $("#estadoPrime").textContent = cliente.prime ? "Miembro FoW Prime" : "Sin membresía Prime";
+  $("#estadoPrime").textContent = primeActivo() ? "Miembro FoW Prime" + (cliente.vence ? " hasta " + new Date(cliente.vence).toLocaleDateString("es-CO") : "") : "Sin membresía Prime";
   const mios = leer("fow_pedidos", []).filter((p) => p.cliente.correo === cliente.correo).reverse();
   $("#misPedidos").innerHTML = mios.length ? mios.map((p) =>
     `<li><span>${new Date(p.fecha).toLocaleDateString("es-CO")}</span><b>${dinero(p.total)}</b><em>${p.estado}</em></li>`).join("")
@@ -155,16 +177,45 @@ function abrirPerfil() {
 
 $("#btnCuenta").onclick = $("#btnCuenta2").onclick = () =>
   cliente ? abrirPerfil() : pedirAcceso("Entra con tu cuenta para pedir y ver tus datos.", null);
-$("#btnPrime").onclick = () => {
-  const activar = () => { cliente.prime = true; guardarCuentas(); pintarCarrito(); aviso("¡Ya tienes FoW Prime!"); };
-  cliente ? activar() : pedirAcceso("Inicia sesión o crea tu cuenta para activar FoW Prime.", activar);
+/* Compra de FoW Prime (pago de demostración: no se cobra ni se guarda ningún dato de tarjeta) */
+const PLANES = { mensual: ["Mensual", 19900, 30], trimestral: ["Trimestral", 49900, 90], anual: ["Anual", 179900, 365] };
+function resumenPrime() {
+  const f = $("#formPrime"), tarjeta = f.metodo.value === "tarjeta";
+  $("#resumenPrime").textContent = dinero(PLANES[f.plan.value][1]);
+  $("#camposTarjeta").hidden = !tarjeta; $("#camposBilletera").hidden = tarjeta;
+  $("#camposTarjeta").querySelectorAll("input").forEach((i) => (i.required = tarjeta));
+  f.celular.required = !tarjeta;
+}
+function abrirPrime() {
+  if (bloqueado()) return aviso(AVISO_BLOQ);
+  if (primeActivo()) return aviso("Tu Prime está activo" + (cliente.vence ? " hasta " + new Date(cliente.vence).toLocaleDateString("es-CO") : ""));
+  $("#dlgPrime").showModal(); resumenPrime();
+}
+$("#btnPrime").onclick = () => cliente ? abrirPrime() : pedirAcceso("Inicia sesión o crea tu cuenta para comprar FoW Prime.", abrirPrime);
+$("#formPrime").onchange = resumenPrime;
+$("#formPrime").onsubmit = (e) => {
+  e.preventDefault();
+  const f = e.target, pl = PLANES[f.plan.value], ahora = new Date();
+  cliente.prime = true; cliente.plan = pl[0]; cliente.vence = new Date(ahora.getTime() + pl[2] * 864e5).toISOString();
+  guardarCuentas();
+  const m = leer("fow_membresias", []);
+  m.push({ id: Date.now(), fecha: ahora.toISOString(), correo: cliente.correo, nombre: cliente.nombre, plan: pl[0], precio: pl[1], metodo: f.metodo.value });
+  guardar("fow_membresias", m);
+  f.reset(); $("#dlgPrime").close(); pintarCarrito(); aviso("¡Bienvenido a FoW Prime!");
 };
+function aplicarBanner() {
+  const b = leerBanner(), h = $("#hPlato");
+  $("#hEtiqueta").textContent = b.etiqueta; $("#hTitulo").textContent = b.titulo; $("#hTexto").textContent = b.texto;
+  $("#hBoton").textContent = b.boton; $("#hEmoji").textContent = b.emoji;
+  h.classList.toggle("con-imagen", !!b.imagen); h.style.backgroundImage = b.imagen ? `url(${b.imagen})` : "";
+}
 $("#btnContinuar").onclick = () =>
   cliente ? abrirPedido() : pedirAcceso("Para hacer tu pedido inicia sesión o crea una cuenta.", abrirPedido);
 
 $("#formLogin").onsubmit = (e) => {
   e.preventDefault();
   const f = e.target;
+  cuentas = leer("fow_cuentas", []);
   const c = cuentas.find((x) => x.correo === f.correo.value.trim().toLowerCase() && x.clave === f.clave.value);
   if (!c) { $("#errLogin").textContent = "Correo o contraseña incorrectos."; return; }
   f.reset(); $("#errLogin").textContent = ""; $("#dlgLogin").close();
@@ -173,6 +224,7 @@ $("#formLogin").onsubmit = (e) => {
 $("#formRegistro").onsubmit = (e) => {
   e.preventDefault();
   const f = e.target, correo = f.correo.value.trim().toLowerCase();
+  cuentas = leer("fow_cuentas", []);
   if (cuentas.some((x) => x.correo === correo)) { $("#errRegistro").textContent = "Ese correo ya tiene una cuenta. Inicia sesión."; return; }
   const c = { nombre: f.nombre.value.trim(), telefono: f.telefono.value.trim(), correo, clave: f.clave.value, direccion: "", prime: false };
   cuentas.push(c); guardarCuentas();
@@ -197,6 +249,7 @@ document.addEventListener("click", (e) => {
 });
 $("#formPedido").onsubmit = (e) => {
   const f = e.target;
+  if (bloqueado()) { e.preventDefault(); $("#dlgPedido").close(); return aviso(AVISO_BLOQ); }
   if (faltantes(carrito, leerInventario()).length) { // algo se agotó mientras armaba el pedido
     e.preventDefault(); $("#dlgPedido").close(); pintarMenu(); abrirCarrito(true);
     return aviso("Algún producto se agotó. Ajusta tu pedido.");
@@ -215,4 +268,5 @@ $("#formPedido").onsubmit = (e) => {
   aviso("Solicitud enviada. Te contactaremos pronto.");
 };
 
-pintarCategorias(); pintarMenu(); pintarPromos(); pintarSesion(); entregaCambio();
+carrito = carrito.filter((i) => PRODUCTOS.some((p) => p.id === i.id));
+aplicarBanner(); pintarCategorias(); pintarMenu(); pintarPromos(); pintarSesion(); entregaCambio();

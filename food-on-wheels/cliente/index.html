@@ -25,12 +25,12 @@
 <main id="inicio">
   <section class="hero">
     <div class="hero-texto">
-      <p class="hero-etiqueta">Cocina colombiana</p>
-      <h1>Un pedacito de Colombia en cada bocado.</h1>
-      <p>Sabores que saben a casa. Elige tus favoritos y pide para recoger o recibir en tu puerta.</p>
-      <a class="btn btn-naranja" href="#menu">Explorar el menú</a>
+      <p class="hero-etiqueta" id="hEtiqueta">Cocina colombiana</p>
+      <h1 id="hTitulo">Un pedacito de Colombia en cada bocado.</h1>
+      <p id="hTexto">Sabores que saben a casa. Elige tus favoritos y pide para recoger o recibir en tu puerta.</p>
+      <a class="btn btn-naranja" href="#menu" id="hBoton">Explorar el menú</a>
     </div>
-    <div class="hero-plato" aria-hidden="true">🍛<span class="sello">🛵 Envío rápido y seguro</span></div>
+    <div class="hero-plato" id="hPlato" aria-hidden="true"><span id="hEmoji">🍛</span><span class="sello">🛵 Envío rápido y seguro</span></div>
   </section>
 
   <section class="promos" id="promos" aria-labelledby="t-promos">
@@ -161,6 +161,25 @@
       <button class="btn btn-gris" type="button" data-cerrar>Volver</button>
       <button class="btn btn-verde" type="submit">Enviar solicitud de pedido</button>
     </div>
+  </form>
+</dialog>
+
+<!-- Compra de Prime -->
+<dialog id="dlgPrime">
+  <form id="formPrime" class="form">
+    <h2>Compra tu FoW Prime 👑</h2>
+    <p class="nota">25% de descuento en todas tus compras mientras dure tu membresía.</p>
+    <label>Plan<select name="plan"><option value="mensual">Mensual – $19.900</option><option value="trimestral">Trimestral – $49.900</option><option value="anual">Anual – $179.900</option></select></label>
+    <label>Método de pago<select name="metodo"><option value="tarjeta">Tarjeta crédito / débito</option><option value="nequi">Nequi</option><option value="daviplata">Daviplata</option></select></label>
+    <div class="campos" id="camposTarjeta">
+      <label>Nombre en la tarjeta<input name="titular" autocomplete="cc-name"></label>
+      <label>Número de tarjeta<input name="numero" inputmode="numeric" pattern="[0-9 ]{15,19}" autocomplete="cc-number" placeholder="0000 0000 0000 0000"></label>
+      <div class="par"><label>Vence (MM/AA)<input name="vence" pattern="(0[1-9]|1[0-2])/[0-9]{2}" placeholder="08/29" autocomplete="cc-exp"></label><label>CVV<input name="cvv" inputmode="numeric" pattern="[0-9]{3,4}" autocomplete="cc-csc"></label></div>
+    </div>
+    <div class="campos" id="camposBilletera" hidden><label>Celular de la cuenta<input name="celular" type="tel" pattern="[0-9 ]{10,13}" placeholder="300 123 4567"></label></div>
+    <p class="total-prime">Total a pagar: <b id="resumenPrime"></b></p>
+    <p class="nota">Pago de demostración: no se cobra nada ni se guarda ningún dato de tu tarjeta.</p>
+    <div class="acciones"><button class="btn btn-gris" type="button" data-cerrar>Cancelar</button><button class="btn btn-verde" type="submit">Pagar y activar</button></div>
   </form>
 </dialog>
 

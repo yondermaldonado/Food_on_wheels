@@ -2,7 +2,8 @@
 const $ = (s) => document.querySelector(s);
 const dinero = (n) => "$" + Math.round(n).toLocaleString("es-CO");
 const leer = (k, v) => { try { return JSON.parse(localStorage.getItem(k)) ?? v; } catch { return v; } };
-const guardar = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { aviso("No hay espacio: usa imágenes más pequeñas."); return false; } };
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const ADMIN = { correo: "admin@fow.com", clave: "admin123", nombre: "María López" };
 const ESTADOS = ["pendiente", "en preparación", "listo", "en camino", "entregado", "cancelado"];
 const VISTAS = [["inicio","🏠","Inicio"],["pedidos","🧾","Pedidos"],["ventas","📈","Ventas"],["facturas","📄","Facturas"],["productos","📦","Productos"],["inventario","🥬","Inventario"],["puntos","🏪","Puntos de venta"],["clientes","👥","Clientes"],["reportes","📊","Reportes"],["config","⚙️","Configuración"]];
@@ -19,9 +20,13 @@ const badge = (e) => `<span class="est e${ESTADOS.indexOf(e)}">${e}</span>`;
 const coincide = (...t) => t.join(" ").toLowerCase().includes(busq);
 function aviso(m) { const a = $("#aviso"); a.textContent = m; a.classList.add("ver"); setTimeout(() => a.classList.remove("ver"), 2200); }
 function guardarPedidos() { guardar("fow_pedidos", pedidos); }
+function registrar(n, c, motivo) { // historial de movimientos del inventario
+  const h = leer("fow_historial", []); h.push({ f: new Date().toISOString(), n, c: Math.round(c * 1000) / 1000, motivo });
+  guardar("fow_historial", h.slice(-500));
+}
 function mover(p, signo) { // descuenta (-1) o devuelve (+1) los insumos de un pedido
   inv = leerInventario(); const t = necesidades(p.items);
-  inv.forEach((i) => { if (t[i.n]) i.s = Math.max(0, Math.round((i.s + signo * t[i.n]) * 1000) / 1000); });
+  inv.forEach((i) => { if (t[i.n]) { i.s = Math.max(0, Math.round((i.s + signo * t[i.n]) * 1000) / 1000); registrar(i.n, signo * t[i.n], (signo < 0 ? "Pedido " : "Devolución ") + codigo(p)); } });
   guardar("fow_inventario", inv);
 }
 function cambiarEstado(p, nuevo) {
@@ -52,11 +57,11 @@ const tabla = (cab, filas) => `<div class="tabla"><table><thead><tr>${cab.map((c
 function filaPedido(p, edit) {
   const det = p.items.map((i) => `${i.cant}× ${prod(i.id)?.nombre}`).join(", ");
   const sel = `<select class="est e${ESTADOS.indexOf(p.estado)}" data-id="${p.id}" aria-label="Estado del pedido">${ESTADOS.map((o) => `<option ${o === p.estado ? "selected" : ""}>${o}</option>`).join("")}</select>`;
-  return `<tr><td>${hora(p)}</td><td><b>${codigo(p)}</b></td><td>${p.cliente.nombre}</td>${edit ? `<td class="det">${det}${p.notas ? `<br><em>Nota: ${p.notas}</em>` : ""}</td>` : ""}<td>${p.entrega === "domicilio" ? "🛵 Domicilio" : "🏪 Recoger"}</td><td>${dinero(p.total)}</td><td>${edit ? sel : badge(p.estado)}</td></tr>`;
+  return `<tr><td>${hora(p)}</td><td><b>${codigo(p)}</b></td><td>${esc(p.cliente.nombre)}</td>${edit ? `<td class="det">${det}${p.notas ? `<br><em>Nota: ${esc(p.notas)}</em>` : ""}</td>` : ""}<td>${p.entrega === "domicilio" ? "🛵 Domicilio" : "🏪 Recoger"}</td><td>${dinero(p.total)}</td><td>${edit ? sel : badge(p.estado)}</td></tr>`;
 }
 function ranking(n) {
   const m = {}; activos().forEach((p) => p.items.forEach((i) => (m[i.id] = (m[i.id] || 0) + i.cant)));
-  return Object.entries(m).map(([id, c]) => ({ p: prod(id), c })).sort((a, b) => b.c - a.c).slice(0, n);
+  return Object.entries(m).map(([id, c]) => ({ p: prod(id), c })).filter((x) => x.p).sort((a, b) => b.c - a.c).slice(0, n);
 }
 function barras(n) {
   const r = ranking(n), max = r[0]?.c || 1;
@@ -75,7 +80,7 @@ function grafica() {
 const V = {
   inicio: () => { const h = hoy(), v = h.reduce((a, p) => a + p.total, 0); return `
     <section class="banner"><div><h1>¡Hola, ${ADMIN.nombre.split(" ")[0]}!</h1><p>Aquí tienes el resumen de Food on Wheels hoy.</p></div><span class="moto" aria-hidden="true">🛵</span><em>Grandes sabores, mejores resultados</em></section>
-    <div class="kpis">${kpi("🛍️","c1","Pedidos hoy",h.length)}${kpi("💰","c2","Ventas hoy",v,"$")}${kpi("🧾","c3","Facturas emitidas",pedidos.filter((p) => p.estado === "entregado").length)}${kpi("🏪","c4","Puntos de venta activos",4)}</div>
+    <div class="kpis">${kpi("🛍️","c1","Pedidos hoy",h.length)}${kpi("💰","c2","Ventas hoy",v,"$")}${kpi("🧾","c3","Facturas emitidas",pedidos.filter((p) => p.estado === "entregado").length)}${kpi("🏪","c4","Puntos de venta activos",puntos().filter((x) => x.activo).length)}</div>
     <div class="dos"><section class="caja"><h2>Pedidos en tiempo real <small class="vivo">En línea</small></h2>${tabla(["Hora","Pedido","Cliente","Entrega","Total","Estado"], pedidos.slice(-6).reverse().map((p) => filaPedido(p, false)))}<a class="ver" href="#pedidos">Ver todos los pedidos →</a></section>
     <section class="caja"><h2>Resumen de ventas</h2><p class="gran">${dinero(v)}</p>${grafica()}</section></div>
     <section class="caja"><h2>Productos más vendidos</h2>${barras(6)}</section>`; },
@@ -83,9 +88,9 @@ const V = {
     <section class="caja"><h2>Pedidos</h2><div class="chips">${["todos", ...ESTADOS].map((e) => `<button class="chip" data-f="${e}" aria-pressed="${e === filtro}">${e}${e === "todos" ? "" : " (" + pedidos.filter((p) => p.estado === e).length + ")"}</button>`).join("")}</div>
     ${tabla(["Hora","Pedido","Cliente","Detalle","Entrega","Total","Estado"], l.map((p) => filaPedido(p, true)))}</section>`; },
   ventas: () => { const a = activos(), t = a.reduce((s, p) => s + p.total, 0); return `
-    <div class="kpis">${kpi("💰","c2","Ventas totales",t,"$")}${kpi("🛍️","c1","Pedidos",a.length)}${kpi("🎟️","c3","Ticket promedio",a.length ? t / a.length : 0,"$")}${kpi("🛵","c4","Domicilios",a.filter((p) => p.entrega === "domicilio").length)}</div>
+    <div class="kpis">${kpi("💰","c2","Ventas totales",t,"$")}${kpi("🛍️","c1","Pedidos",a.length)}${kpi("🎟️","c3","Ticket promedio",a.length ? t / a.length : 0,"$")}${kpi("🛵","c4","Domicilios",a.filter((p) => p.entrega === "domicilio").length)}${kpi("👑","c1","Ingresos Prime",leer("fow_membresias", []).reduce((s, m) => s + m.precio, 0),"$")}</div>
     <div class="dos"><section class="caja"><h2>Ventas de hoy por hora</h2>${grafica()}</section><section class="caja"><h2>Más vendidos</h2>${barras(8)}</section></div>`; },
-  facturas: () => `<section class="caja"><h2>Facturas emitidas</h2>${tabla(["Factura","Fecha","Cliente","Total"], pedidos.filter((p) => p.estado === "entregado").reverse().filter((p) => coincide(codigo(p), p.cliente.nombre)).map((p) => `<tr><td><b>FAC-${String(p.id).slice(-4)}</b></td><td>${new Date(p.fecha).toLocaleDateString("es-CO")} ${hora(p)}</td><td>${p.cliente.nombre}</td><td>${dinero(p.total)}</td></tr>`))}</section>`,
+  facturas: () => `<section class="caja"><h2>Facturas emitidas</h2>${tabla(["Factura","Fecha","Cliente","Total"], pedidos.filter((p) => p.estado === "entregado").reverse().filter((p) => coincide(codigo(p), p.cliente.nombre)).map((p) => `<tr><td><b>FAC-${String(p.id).slice(-4)}</b></td><td>${new Date(p.fecha).toLocaleDateString("es-CO")} ${hora(p)}</td><td>${esc(p.cliente.nombre)}</td><td>${dinero(p.total)}</td></tr>`))}</section>`,
   productos: () => { const m = Object.fromEntries(pedidos.filter((p) => p.estado !== "cancelado").flatMap((p) => p.items).reduce((a, i) => a.set(i.id, (a.get(i.id) || 0) + i.cant), new Map())); return `
     <section class="caja"><h2>Productos (${PRODUCTOS.length})</h2>${tabla(["","Producto","Categoría","Precio","Vendidos","Disponibilidad"], PRODUCTOS.filter((p) => coincide(p.nombre, p.categoria)).map((p) => `<tr><td class="em">${p.emoji}</td><td><b>${p.nombre}</b></td><td>${p.categoria}</td><td>${dinero(p.precio)}</td><td>${m[p.id] || 0}</td><td>${agotado(p, inv) ? '<span class="est e5">Agotado</span>' : '<span class="est e3">Disponible</span>'}</td></tr>`))}</section>`; },
   inventario: () => { const bajos = inv.filter((i) => i.s <= i.m).length; return `
@@ -129,7 +134,7 @@ $("#vista").addEventListener("change", (e) => {
 $("#vista").addEventListener("click", (e) => {
   const t = e.target.closest("button"); if (!t) return;
   if (t.dataset.f) { filtro = t.dataset.f; render(); }
-  if (t.dataset.k) { const i = inv[+t.dataset.k]; i.s = Math.max(0, i.s + +t.dataset.d); guardar("fow_inventario", inv); render(); }
+  if (t.dataset.k) { const i = inv[+t.dataset.k]; i.s = Math.max(0, i.s + +t.dataset.d); registrar(i.n, +t.dataset.d, "Ajuste manual"); guardar("fow_inventario", inv); render(); }
   if (t.id === "btnSalir") { localStorage.removeItem("fow_admin_sesion"); location.reload(); }
   if (t.id === "btnReset" && confirm("Se borrarán pedidos e inventario guardados. ¿Continuar?")) { ["fow_pedidos", "fow_inventario"].forEach((k) => localStorage.removeItem(k)); location.reload(); }
 });
@@ -141,6 +146,6 @@ $("#formLogin").onsubmit = (e) => {
 window.addEventListener("storage", (e) => { // cambios hechos desde la web del cliente
   if (e.key === "fow_pedidos") pedidos = leer("fow_pedidos", []);
   if (e.key === "fow_inventario") inv = leerInventario();
-  if (["fow_pedidos", "fow_inventario"].includes(e.key) && !$("#app").hidden) { render(); if (e.key === "fow_pedidos") aviso("Llegó un pedido nuevo"); }
+  if (["fow_pedidos", "fow_inventario", "fow_cuentas", "fow_membresias"].includes(e.key) && !$("#app").hidden) { render(); if (e.key === "fow_pedidos") aviso("Llegó un pedido nuevo"); }
 });
 if (leer("fow_admin_sesion", 0)) entrar();

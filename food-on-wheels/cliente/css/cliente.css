@@ -170,3 +170,14 @@ dialog[open]::backdrop{animation:aparece .25s}
 .tarjeta.agotado h3{color:var(--gris)}
 .etiqueta-agotado{background:#3b3b3b}
 .btn-anadir:disabled{background:#c9c4b6;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* Imágenes, banner editable y compra de Prime */
+[hidden]{display:none!important}
+.tarjeta-img{overflow:hidden}
+.tarjeta-img img{width:100%;height:100%;object-fit:cover}
+.item-emoji{overflow:hidden}.item-emoji img{width:100%;height:100%;object-fit:cover}
+.hero-plato.con-imagen{background-size:cover;background-position:center;border-radius:18px}
+.hero-plato.con-imagen #hEmoji{display:none}
+.campos{display:grid;gap:12px}
+.par{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+.total-prime{font-size:1.1rem}.total-prime b{color:var(--naranja);font-family:var(--f-titulo);font-size:1.4rem}

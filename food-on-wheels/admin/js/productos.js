@@ -1,6 +1,6 @@
 // DATOS DE PRUEBA (quemados). Luego se reemplazan por la consulta a la base de datos.
 // Estructura: id, nombre, descripcion, precio (COP), categoria, minutos, rating, emoji, descuento (% opcional)
-const PRODUCTOS = [
+const PRODUCTOS_BASE = [
   // Platos fuertes
   { id: 1,  nombre: "Bandeja paisa",       descripcion: "La clásica, abundante y llena de sabor.",        precio: 38900, categoria: "Platos fuertes", minutos: 25, rating: 4.8, emoji: "🍛" },
   { id: 2,  nombre: "Ajiaco santafereño",  descripcion: "Sopa reconfortante con pollo, papa y mazorca.",  precio: 32900, categoria: "Platos fuertes", minutos: 30, rating: 4.7, emoji: "🍲" },
@@ -38,7 +38,7 @@ const PRODUCTOS = [
   { id: 30, nombre: "Combo parche",        descripcion: "6 arepas rellenas y 3 limonadas de coco.",       precio: 64900, categoria: "Combos", minutos: 30, rating: 4.6, emoji: "🎉", descuento: 10 }
 ];
 
-const PROMOCIONES = [
+const PROMOCIONES_BASE = [
   { titulo: "Martes de arepas",   texto: "20% menos en la arepa rellena.",           filtro: "Entradas" },
   { titulo: "Combos en familia",  texto: "Hasta 15% menos en combos seleccionados.", filtro: "Combos" },
   { titulo: "FoW Prime",          texto: "25% de descuento en todas tus compras.",   filtro: "prime" }
@@ -48,7 +48,7 @@ const PROMOCIONES = [
 // [insumo, unidad, stock inicial, mínimo]
 const INSUMOS = [["Arroz","kg",40,15],["Frijol","kg",18,10],["Carne de res","kg",25,12],["Carne de cerdo","kg",20,10],["Pollo","kg",30,12],["Plátano maduro","und",60,30],["Plátano verde","und",50,25],["Huevos","und",120,60],["Aguacate","und",35,20],["Harina de maíz","kg",22,8],["Papa","kg",45,20],["Yuca","kg",9,10],["Queso","kg",12,6],["Limón","kg",8,5],["Coco","und",14,10],["Lulo","kg",6,6],["Panela","kg",10,4],["Aceite","L",16,8]];
 // Insumos que gasta UNA unidad de cada producto. "@id" = incluye otro producto (para los combos).
-const RECETAS = {
+const RECETAS_BASE = {
   1: [["Arroz",.15],["Frijol",.12],["Carne de cerdo",.1],["Carne de res",.1],["Huevos",1],["Plátano maduro",1],["Aguacate",.5]],
   2: [["Pollo",.2],["Papa",.3],["Aguacate",.5]],
   3: [["Pollo",.25],["Yuca",.15],["Plátano verde",1],["Papa",.15]],
@@ -74,7 +74,7 @@ function leerInventario() {
 }
 function necesidades(items) { // items: [{id, cant}] → { insumo: cantidad total }
   const t = {};
-  const sumar = (id, veces) => (RECETAS[id] || []).forEach(([k, c]) => k[0] === "@" ? sumar(+k.slice(1), c * veces) : (t[k] = (t[k] || 0) + c * veces));
+  const sumar = (id, veces, d = 0) => d < 6 && (RECETAS[id] || []).forEach(([k, c]) => k[0] === "@" ? sumar(+k.slice(1), c * veces, d + 1) : (t[k] = (t[k] || 0) + c * veces));
   items.forEach((i) => sumar(i.id, i.cant));
   return t;
 }
@@ -83,3 +83,12 @@ function faltantes(items, inv) { // insumos que no alcanzan para esos items
   return Object.keys(t).filter((k) => { const x = inv.find((i) => i.n === k); return !x || x.s < t[k] - 1e-9; });
 }
 const agotado = (p, inv) => faltantes([{ id: p.id, cant: 1 }], inv).length > 0;
+
+/* ===== CATÁLOGO EDITABLE (el admin lo guarda en localStorage; si no hay nada, se usan los datos base) ===== */
+const _lee = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+let PRODUCTOS = _lee("fow_productos", PRODUCTOS_BASE);
+let RECETAS = _lee("fow_recetas", RECETAS_BASE);
+let PROMOCIONES = _lee("fow_promos", PROMOCIONES_BASE);
+const BANNER_BASE = { etiqueta: "Cocina colombiana", titulo: "Un pedacito de Colombia en cada bocado.", texto: "Sabores que saben a casa. Elige tus favoritos y pide para recoger o recibir en tu puerta.", boton: "Explorar el menú", emoji: "🍛", imagen: "" };
+const leerBanner = () => ({ ...BANNER_BASE, ..._lee("fow_banner", {}) });
+function recargarCatalogo() { PRODUCTOS = _lee("fow_productos", PRODUCTOS_BASE); RECETAS = _lee("fow_recetas", RECETAS_BASE); PROMOCIONES = _lee("fow_promos", PROMOCIONES_BASE); }

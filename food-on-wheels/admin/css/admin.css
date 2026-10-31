@@ -92,3 +92,24 @@ tr.bajo td:first-child{border-left:4px solid var(--naranja)}
   .menu-btn{display:grid}.usuario div{display:none}.banner em{display:none}.barras li{grid-template-columns:1fr auto}.barras i{grid-column:1/-1;grid-row:2}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* Gestión (CRUD) */
+.cab{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}.cab h2{margin:0}
+.acc{display:flex;gap:6px;flex-wrap:wrap}
+.acc button,.mini{padding:5px 12px;border:1px solid var(--linea);border-radius:8px;background:#fff;font-weight:700;font-size:.8rem;transition:all .15s}
+.acc button:hover,.mini:hover{background:var(--verde);color:#fff;border-color:var(--verde)}
+.acc button.peli:hover{background:#b3261e;border-color:#b3261e}.acc button:active{transform:scale(.93)}
+.thumb{width:44px;height:44px;border-radius:10px;object-fit:cover;display:block}
+.prev{max-width:100%;max-height:140px;border-radius:12px;object-fit:cover}
+tr.bloq td{background:#fdf0ee;color:var(--gris)}
+.neg{color:#b3261e;font-weight:700}.pos{color:var(--verde2);font-weight:700}
+.sub{margin:18px 0 8px;font-family:var(--t);color:var(--verde)}
+dialog{margin:auto;width:min(520px,calc(100% - 24px));max-height:92vh;padding:0;border:0;border-radius:20px;overflow-y:auto}
+dialog::backdrop{background:rgba(15,40,30,.55)}dialog[open]{animation:abre .25s}
+.form{display:grid;gap:12px;padding:22px}.form h2{margin:0;color:var(--verde)}
+.form label{display:grid;gap:4px;font-size:.85rem;font-weight:700}
+.form input,.form select,.form textarea{width:100%;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;background:#fbfaf6}
+.form label.chk{display:flex;align-items:center;gap:8px}.form label.chk input{width:auto}
+.dos-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.nota{font-size:.8rem;color:var(--gris)}
+.fila-receta{display:grid;grid-template-columns:1fr 90px auto;gap:8px;margin-bottom:8px}
