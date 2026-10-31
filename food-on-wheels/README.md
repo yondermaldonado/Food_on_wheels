@@ -4,7 +4,7 @@ Web de restaurante con dos interfaces que comparten datos (HTML, CSS y JS puro).
 
 ```
 food-on-wheels/
-├── cliente/   → menú, carrito, cuenta/perfil, compra de FoW Prime
+├── cliente/   → menú, carrito, seguimiento de pedidos, cuenta/perfil, compra de FoW Prime
 └── admin/     → pedidos, productos y combos, inventario e historial, puntos de venta, clientes, banner y promos
 ```
 

@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="css/cliente.css">
 </head>
 <body>
+<div class="splash" id="splash"><span>🛵</span><b>Food on Wheels</b></div>
 
 <header class="top">
   <a href="#inicio" class="logo">FoW</a>
@@ -19,6 +20,7 @@
     <input type="search" id="buscar" placeholder="Busca platos o cocina…">
   </label>
   <button class="btn-icono" id="btnCuenta" type="button" aria-label="Mi cuenta">👤</button>
+  <button class="btn-icono" id="btnPedidos" type="button" aria-label="Mis pedidos">🧾<span class="burbuja" id="contPedidos" hidden>0</span></button>
   <button class="btn-icono" id="btnCarrito" type="button" aria-label="Abrir carrito">🛒<span class="burbuja" id="contador">0</span></button>
 </header>
 
@@ -63,7 +65,7 @@
 <nav class="nav-movil" aria-label="Navegación principal">
   <a href="#inicio" class="activo">🏠<span>Inicio</span></a>
   <a href="#menu">🔍<span>Menú</span></a>
-  <a href="#promos">🏷️<span>Ofertas</span></a>
+  <button type="button" id="btnPedidos2">🧾<span>Pedidos</span></button>
   <button type="button" id="btnCuenta2">👤<span>Cuenta</span></button>
 </nav>
 
@@ -83,6 +85,12 @@
     </dl>
     <button class="btn btn-naranja btn-ancho" id="btnContinuar" type="button">Continuar</button>
   </footer>
+</aside>
+
+<!-- Estado de mis pedidos -->
+<aside class="carrito" id="panelPedidos" aria-label="Mis pedidos" aria-hidden="true">
+  <header class="carrito-cab"><h2>Mis pedidos</h2><button class="btn-icono" id="cerrarPedidos" type="button" aria-label="Cerrar">✕</button></header>
+  <div class="carrito-items" id="listaPedidos"></div>
 </aside>
 
 <!-- Iniciar sesión -->
@@ -133,8 +141,6 @@
     <label>Dirección habitual<input name="direccion" placeholder="Calle 72 # 12-34, Apto 201"></label>
     <label>Nueva contraseña (opcional)<input name="clave" type="password" minlength="6" autocomplete="new-password"></label>
     <p class="error" id="errPerfil" role="alert"></p>
-    <h3>Mis pedidos</h3>
-    <ul class="pedidos" id="misPedidos"></ul>
     <div class="acciones">
       <button class="btn btn-gris" type="button" id="btnSalir">Cerrar sesión</button>
       <button class="btn btn-verde" type="submit">Guardar cambios</button>

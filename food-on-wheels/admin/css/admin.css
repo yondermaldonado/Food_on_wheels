@@ -113,3 +113,38 @@ dialog::backdrop{background:rgba(15,40,30,.55)}dialog[open]{animation:abre .25s}
 .dos-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .nota{font-size:.8rem;color:var(--gris)}
 .fila-receta{display:grid;grid-template-columns:1fr 90px auto;gap:8px;margin-bottom:8px}
+
+/* ===== Estilo mejorado y animaciones ===== */
+body{background:radial-gradient(900px 420px at 100% 0,#fff1cf,transparent),var(--crema)}
+.login{position:relative;overflow:hidden}
+.login::before,.login::after{content:"";position:absolute;border-radius:50%;opacity:.18;pointer-events:none}
+.login::before{width:380px;height:380px;left:-100px;top:-100px;background:var(--lima);animation:deriva 10s ease-in-out infinite alternate}
+.login::after{width:300px;height:300px;right:-80px;bottom:-80px;background:var(--amarillo);animation:deriva 12s ease-in-out infinite alternate-reverse}
+.tarjeta-login{position:relative;z-index:1;box-shadow:0 30px 60px rgba(0,0,0,.3)}
+.lateral{background:linear-gradient(180deg,#0f3d2e,#0a2a1f);box-shadow:6px 0 24px rgba(15,61,46,.22)}
+#nav a{position:relative;overflow:hidden}
+#nav a::before{content:"";position:absolute;left:0;top:20%;bottom:20%;width:4px;border-radius:2px;background:var(--lima);transform:scaleY(0);transition:transform .25s}
+#nav a.activo::before,#nav a:hover::before{transform:scaleY(1)}
+#nav a.activo{background:linear-gradient(90deg,var(--verde2),#1d7258);box-shadow:0 6px 16px rgba(0,0,0,.25)}
+.lema{animation:flota 5s ease-in-out infinite}
+.barra{backdrop-filter:blur(10px);background:rgba(251,248,241,.88)}
+.banner{background:linear-gradient(110deg,#dcebe0,#c3e0cc,#e9f3d6);background-size:220% 220%;animation:fluye 10s ease infinite}
+.moto{animation:ruta 9s linear infinite,rebote .45s ease-in-out infinite alternate}
+.ico{transition:transform .35s}.kpi:hover .ico{transform:rotate(-10deg) scale(1.15)}
+.kpi{position:relative;overflow:hidden}
+.kpi::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.7) 50%,transparent 65%);transform:translateX(-120%);pointer-events:none}
+.kpi:hover::after{transform:translateX(120%);transition:transform .7s}
+.caja{transition:transform .25s,box-shadow .25s}.caja:hover{box-shadow:0 14px 30px rgba(15,61,46,.14)}
+tbody tr:hover{background:#faf6ea;box-shadow:inset 4px 0 0 var(--naranja)}
+.est.e0{animation:latido 1.8s infinite}
+.btn{position:relative;overflow:hidden}
+.btn::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.45) 50%,transparent 70%);transform:translateX(-120%);pointer-events:none}
+.btn:hover::after{transform:translateX(120%);transition:transform .6s}
+.chip{transition:all .2s}.chip:hover{transform:translateY(-2px)}.chip[aria-pressed=true]{animation:pop .3s}
+.cab h2::after{content:"";display:block;width:54px;height:4px;margin-top:5px;border-radius:2px;background:linear-gradient(90deg,var(--naranja),var(--amarillo));animation:regla 1s}
+dialog::backdrop{backdrop-filter:blur(4px)}
+.graf .area{animation:aparece 1.6s}.barras i{box-shadow:0 3px 8px rgba(242,106,27,.3)}
+@keyframes fluye{50%{background-position:100% 100%}}@keyframes deriva{to{transform:translate(40px,30px) scale(1.15)}}
+@keyframes flota{50%{transform:translateY(-6px)}}@keyframes rebote{to{transform:translateY(-3px)}}
+@keyframes latido{0%{box-shadow:0 0 0 0 rgba(242,106,27,.45)}100%{box-shadow:0 0 0 10px rgba(242,106,27,0)}}
+@keyframes pop{50%{transform:scale(1.12)}}@keyframes regla{from{width:0}}

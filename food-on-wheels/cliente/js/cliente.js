@@ -119,20 +119,8 @@ function entregaCambio() {
 document.addEventListener("click", (e) => {
   const t = e.target.closest("button, a");
   if (!t) return;
-  if (t.dataset.cat) { categoria = t.dataset.cat; window.addEventListener("storage", (e) => { // el admin cambió algo
-  if (["fow_productos", "fow_recetas", "fow_promos", "fow_banner", "fow_inventario"].includes(e.key)) {
-    recargarCatalogo(); carrito = carrito.filter((i) => PRODUCTOS.some((p) => p.id === i.id));
-    if (!PRODUCTOS.some((p) => p.categoria === categoria)) categoria = "Todos";
-    aplicarBanner(); pintarCategorias(); pintarMenu(); pintarPromos(); pintarCarrito();
-  }
-  if (e.key === "fow_cuentas") {
-    cuentas = leer("fow_cuentas", []); const c = cuentas.find((x) => x.correo === cliente?.correo);
-    if (cliente && !c) { cliente = null; localStorage.removeItem("fow_sesion"); aviso("Tu cuenta ya no existe."); } else if (c) cliente = c;
-    pintarSesion();
-  }
-});
-pintarCategorias(); pintarMenu(); }
-  if (t.dataset.id && cambiar(+t.dataset.id, 1)) aviso("Añadido al pedido");
+  if (t.dataset.cat) { categoria = t.dataset.cat; pintarCategorias(); pintarMenu(); }
+  if (t.dataset.id && cambiar(+t.dataset.id, 1)) { aviso("Añadido al pedido"); const c = $("#btnCarrito"); c.classList.remove("meneo"); void c.offsetWidth; c.classList.add("meneo"); }
   if (t.dataset.mas) cambiar(+t.dataset.mas, 1);
   if (t.dataset.menos) cambiar(+t.dataset.menos, -1);
   if (t.dataset.filtro) {
@@ -142,7 +130,10 @@ pintarCategorias(); pintarMenu(); }
   if (t.hasAttribute("data-cerrar")) t.closest("dialog").close();
 });
 $("#btnCarrito").onclick = () => abrirCarrito(true);
-$("#cerrarCarrito").onclick = $("#velo").onclick = () => abrirCarrito(false);
+$("#cerrarCarrito").onclick = () => abrirCarrito(false);
+$("#velo").onclick = () => { abrirCarrito(false); abrirPedidos(false); };
+$("#btnPedidos").onclick = $("#btnPedidos2").onclick = () => abrirPedidos();
+$("#cerrarPedidos").onclick = () => abrirPedidos(false);
 $("#buscar").oninput = (e) => { texto = e.target.value.toLowerCase().trim(); pintarMenu(); };
 $("#selEntrega").onchange = entregaCambio;
 function guardarCuentas() {
@@ -155,7 +146,7 @@ function guardarCuentas() {
 function pintarSesion() {
   $("#btnCuenta").textContent = cliente ? cliente.nombre.trim()[0].toUpperCase() : "👤";
   $("#btnCuenta2").firstChild.textContent = cliente ? "🙂" : "👤";
-  pintarCarrito();
+  pintarCarrito(); snap(); pintarPedidos();
 }
 function entrar(c) {
   cliente = c; guardar("fow_sesion", c.correo); pintarSesion();
@@ -168,10 +159,6 @@ function abrirPerfil() {
   f.direccion.value = cliente.direccion || ""; f.clave.value = ""; $("#errPerfil").textContent = "";
   $("#avatar").textContent = cliente.nombre.trim()[0].toUpperCase();
   $("#estadoPrime").textContent = primeActivo() ? "Miembro FoW Prime" + (cliente.vence ? " hasta " + new Date(cliente.vence).toLocaleDateString("es-CO") : "") : "Sin membresía Prime";
-  const mios = leer("fow_pedidos", []).filter((p) => p.cliente.correo === cliente.correo).reverse();
-  $("#misPedidos").innerHTML = mios.length ? mios.map((p) =>
-    `<li><span>${new Date(p.fecha).toLocaleDateString("es-CO")}</span><b>${dinero(p.total)}</b><em>${p.estado}</em></li>`).join("")
-    : "<li>Aún no tienes pedidos.</li>";
   $("#dlgPerfil").showModal();
 }
 
@@ -265,8 +252,55 @@ $("#formPedido").onsubmit = (e) => {
   });
   guardar("fow_pedidos", pedidos);
   carrito = []; pintarCarrito(); abrirCarrito(false);
-  aviso("Solicitud enviada. Te contactaremos pronto.");
+  aviso("Solicitud enviada. Te contactaremos pronto."); snap(); abrirPedidos();
 };
 
+/* Estado de mis pedidos (separado del perfil) */
+const PASOS = { domicilio: ["pendiente", "en preparación", "listo", "en camino", "entregado"], recoger: ["pendiente", "en preparación", "listo", "entregado"] };
+const ETIQ = { pendiente: "Recibido", "en preparación": "Cocinando", listo: "Listo", "en camino": "En camino", entregado: "Entregado" };
+let prev = {};
+const misPedidos = () => leer("fow_pedidos", []).filter((p) => cliente && p.cliente.correo === cliente.correo).reverse();
+const snap = () => { prev = Object.fromEntries(misPedidos().map((p) => [p.id, p.estado])); };
+function pintarPedidos() {
+  const l = misPedidos(), vivos = l.filter((p) => !["entregado", "cancelado"].includes(p.estado)).length;
+  $("#contPedidos").textContent = vivos; $("#contPedidos").hidden = !vivos;
+  $("#listaPedidos").innerHTML = l.length ? l.map((p, k) => {
+    const pasos = PASOS[p.entrega] || PASOS.domicilio, i = pasos.indexOf(p.estado);
+    const items = p.items.map((x) => `${x.cant}× ${PRODUCTOS.find((y) => y.id === x.id)?.nombre ?? "Producto"}`).join(", ");
+    const ruta = p.estado === "cancelado" ? '<p class="pedido-cancel">Este pedido fue cancelado.</p>'
+      : `<div class="ruta" style="--p:${i / (pasos.length - 1)};--n:${pasos.length}"><i class="barra"></i><span class="moto" aria-hidden="true">🛵</span>${pasos.map((s, n) => `<span class="paso ${n < i ? "hecho" : n === i ? "actual" : ""}"><u></u><small>${p.entrega === "recoger" && s === "listo" ? "Listo para recoger" : ETIQ[s]}</small></span>`).join("")}</div>`;
+    return `<article class="pedido${p.estado === "cancelado" ? " cancelado" : ""}" style="--i:${k}"><header><b>#FOW-${String(p.id).slice(-4)}</b><span>${new Date(p.fecha).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}</span></header><p class="pedido-items">${items}</p>${ruta}<footer><span>${p.entrega === "domicilio" ? "🛵 Domicilio" : "🏪 Recoger en local"}</span><b>${dinero(p.total)}</b></footer></article>`;
+  }).join("") : '<p class="vacio">Aún no tienes pedidos. ¡Pide algo rico!</p>';
+}
+function avisarCambios() { // el admin cambió el estado de un pedido
+  misPedidos().forEach((p) => { if (prev[p.id] && prev[p.id] !== p.estado) aviso(`Pedido #${String(p.id).slice(-4)}: ${p.estado}`); });
+  snap(); pintarPedidos();
+}
+function abrirPedidos(abrir = true) {
+  if (abrir && !cliente) return pedirAcceso("Inicia sesión para ver el estado de tus pedidos.", () => abrirPedidos());
+  if (abrir) { abrirCarrito(false); pintarPedidos(); }
+  $("#panelPedidos").classList.toggle("abierto", abrir); $("#panelPedidos").setAttribute("aria-hidden", !abrir); $("#velo").hidden = !abrir;
+}
+/* Detalles de estilo */
+addEventListener("scroll", () => $(".top").classList.toggle("elevado", scrollY > 8), { passive: true });
+if ("IntersectionObserver" in window) {
+  const io = new IntersectionObserver((es) => es.forEach((x) => { if (x.isIntersecting) { x.target.classList.add("visible"); io.unobserve(x.target); } }), { threshold: .1 });
+  document.querySelectorAll(".promos,.menu,.prime").forEach((el) => { el.classList.add("reveal"); io.observe(el); });
+}
+setTimeout(() => $("#splash").classList.add("fuera"), 900);
+
+window.addEventListener("storage", (e) => { // el admin cambió algo
+  if (["fow_productos", "fow_recetas", "fow_promos", "fow_banner", "fow_inventario"].includes(e.key)) {
+    recargarCatalogo(); carrito = carrito.filter((i) => PRODUCTOS.some((p) => p.id === i.id));
+    if (!PRODUCTOS.some((p) => p.categoria === categoria)) categoria = "Todos";
+    aplicarBanner(); pintarCategorias(); pintarMenu(); pintarPromos(); pintarCarrito();
+  }
+  if (e.key === "fow_pedidos") avisarCambios();
+  if (e.key === "fow_cuentas") {
+    cuentas = leer("fow_cuentas", []); const c = cuentas.find((x) => x.correo === cliente?.correo);
+    if (cliente && !c) { cliente = null; localStorage.removeItem("fow_sesion"); aviso("Tu cuenta ya no existe."); } else if (c) cliente = c;
+    pintarSesion();
+  }
+});
 carrito = carrito.filter((i) => PRODUCTOS.some((p) => p.id === i.id));
 aplicarBanner(); pintarCategorias(); pintarMenu(); pintarPromos(); pintarSesion(); entregaCambio();
